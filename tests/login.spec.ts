@@ -1,28 +1,18 @@
 import { test, expect } from '@playwright/test';
+import { loginUser } from './utils/auth'; // Import the reusable login function
+import { createIncognitoContext } from './utils/browser-utils'; // Import the browser utility
 
 test('Successful Login', async ({ browser }) => {
-
-  // Create a new incognito browser context
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
-  // Navigate to the login page
-  await page.goto('https://cebuflexi-web.vercel.app');
-
-  // Click the sign-in button
-  await page.locator('button:has-text("Sign In")').click(); 
-
-  // Locate the username/email and password input fields and fill them in
-  await page.locator('input#email').fill('bahogbilat@email.com');
-  await page.locator('input#password').fill('J@m3s121296');
-
-  // Locate the login button and click it
-  await page.locator('button[type="submit"]').click();
-
-  // Wait for navigation or a specific element to appear after login
-  await expect(page.locator('svg.lucide-user')).toBeVisible({ timeout: 5000 });
+  // Create a new incognito browser context using the helper
+  const { context, page } = await createIncognitoContext(browser);
+  
+  // Get credentials from environment variables
+  const email = process.env.TEST_USER_EMAIL!;
+  const password = process.env.TEST_USER_PASSWORD!;
+  
+  // Use the reusable login function with valid credentials
+  await loginUser(page, email, password);
   
   // Close the browser context after the test
   await context.close();
-
 });
