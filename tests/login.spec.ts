@@ -20,7 +20,7 @@ test('Successful Login', async ({ browser }) => {
   await page.locator('button[type="submit"]').click();
 
   // Wait for navigation or a specific element to appear after login
-  await expect(page.locator('svg')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('svg.lucide-user')).toBeVisible({ timeout: 5000 });
   
   // Close the browser context after the test
   await context.close();
