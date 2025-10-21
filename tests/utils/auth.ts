@@ -13,6 +13,4 @@ export async function loginUser(page: Page, email: string, password_str: string)
   await page.locator('input#email').fill(email);
   await page.locator('input#password').fill(password_str);
   await page.locator('button[type="submit"]').click();
-  // We expect the user icon SVG to be visible after successful login
-  await expect(page.locator('svg.lucide-user')).toBeVisible({ timeout: 5000 });
 }

@@ -10,9 +10,12 @@ test('Search for existing tour/s', async ({ browser }) => {
   // Get credentials from environment variables
   const email = process.env.TEST_USER_EMAIL!;
   const password = process.env.TEST_USER_PASSWORD!;
-  
+
   // Use the reusable login function to log in first
   await loginUser(page, email, password);
+
+  // We expect the user icon SVG to be visible after successful login
+  await expect(page.locator('svg.lucide-user')).toBeVisible({ timeout: 5000 });
 
   // --- Search Steps ---
   // Locate the search bar and type "street"
