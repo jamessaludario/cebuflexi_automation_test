@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginWithValidUser } from './utils/auth'; // Import the new reusable login function
-import { createIncognitoContext } from './utils/browser-utils'; // Import the browser utility
+import { createIncognitoContext, createContextWithVideo } from './utils/browser-utils'; // Import the browser utility
 
 test('Search for existing tour/s', async ({ browser }) => {
   // Create a new incognito browser context using the helper
@@ -98,9 +98,9 @@ test('should display featured tours and handle booking flow', async ({ browser }
   await context.close();
 });
 
-test('should navigate to tours page on "View All Tours" click', async ({ browser }) => {
+test('should navigate to tours page on "View All Tours" click', async ({ browser }, testInfo) => {
   // Create a new incognito browser context using the helper
-  const { context, page } = await createIncognitoContext(browser);
+  const { context, page } = await createContextWithVideo(browser, testInfo);
 
   // Use the reusable login function to log in first
   await loginWithValidUser(page);
