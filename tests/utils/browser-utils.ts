@@ -14,15 +14,13 @@ export async function createIncognitoContext(
   browser: Browser,
   testInfo?: TestInfo
 ): Promise<{ context: BrowserContext; page: Page }> {
-  // Temp video folder inside test-results (fallback when no testInfo provided)
-  const tempVideoDir = testInfo
-    ? path.join(testInfo.outputDir, 'video')
-    : path.join(process.cwd(), 'test-results', 'video-temp');
-  ensureDir(tempVideoDir);
+  // Always use /videos for video output
+  const videoDir = path.join(process.cwd(), 'videos');
+  ensureDir(videoDir);
 
   const context = await browser.newContext({
     viewport: null,
-    recordVideo: { dir: tempVideoDir, size: { width: 1920, height: 1080 } },
+    recordVideo: { dir: videoDir, size: { width: 1920, height: 1080 } },
   });
   const page = await context.newPage();
 
