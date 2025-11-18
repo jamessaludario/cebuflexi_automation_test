@@ -10,7 +10,7 @@ module.exports = defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    headless: false,
+    headless: true,
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',

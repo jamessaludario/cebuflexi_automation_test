@@ -1,5 +1,7 @@
 # Cebuflexi Automation Tests
 
+![Playwright Tests](https://github.com/jamessaludario/cebuflexi_automation_test/actions/workflows/playwright.yml/badge.svg)
+
 This project contains automated end-to-end tests for the Cebuflexi web application, written using Playwright.
 
 ## Prerequisites
