@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { loginWithValidUser } from './utils/auth'; // Import the new reusable login function
 import { createIncognitoContext, createContextWithVideo } from './utils/browser-utils'; // Import the browser utility
 
-test('Search for existing tour/s', async ({ browser }) => {
+test('1. Search for existing tours', async ({ browser }, testInfo) => {
   // Create a new incognito browser context using the helper
-  const { context, page } = await createIncognitoContext(browser);
+  const { context, page } = await createIncognitoContext(browser, testInfo);
 
   // Use the reusable login function to log in first
   await loginWithValidUser(page);
@@ -28,9 +28,9 @@ test('Search for existing tour/s', async ({ browser }) => {
   await context.close();
 });
 
-test('Should not find tours for a random search term', async ({ browser }) => {
+test('2. Should not find tours for a random search term', async ({ browser }, testInfo) => {
   // Create a new incognito browser context using the helper
-  const { context, page } = await createIncognitoContext(browser);
+  const { context, page } = await createIncognitoContext(browser, testInfo);
 
   // Use the reusable login function to log in first
   await loginWithValidUser(page);
@@ -57,8 +57,8 @@ test('Should not find tours for a random search term', async ({ browser }) => {
   await context.close();
 });
 
-test('should display featured tours and handle booking flow', async ({ browser }) => {
-  const { context, page } = await createIncognitoContext(browser);
+test('3. Should display featured tours and handle booking flow', async ({ browser }, testInfo) => {
+  const { context, page } = await createIncognitoContext(browser, testInfo);
   await loginWithValidUser(page);
 
   // Locate the section for featured tours
@@ -82,12 +82,11 @@ test('should display featured tours and handle booking flow', async ({ browser }
   // 3. Click the "Book Now" button and verify the new page title
   const bookNowButton = firstCard.locator('button:has-text("Book Now")');
 
-  // Start waiting for the new page before clicking to avoid a race condition
-  const pagePromise = context.waitForEvent('page');
-  await bookNowButton.click();
-  const newPage = await pagePromise; // The new page is now available
+  // Click and wait for navigation (the booking may open in the same page)
+  await Promise.all([page.waitForNavigation(), bookNowButton.click()]);
+  const newPage = page;
 
-  // Wait for the new page to load
+  // Wait for the target page to finish loading
   await newPage.waitForLoadState();
 
   // Construct the expected title and assert
@@ -98,7 +97,7 @@ test('should display featured tours and handle booking flow', async ({ browser }
   await context.close();
 });
 
-test('should navigate to tours page on "View All Tours" click', async ({ browser }, testInfo) => {
+test('4. Should navigate to tours page on "View All Tours" click', async ({ browser }, testInfo) => {
   // Create a new incognito browser context using the helper
   const { context, page } = await createContextWithVideo(browser, testInfo);
 
@@ -108,10 +107,12 @@ test('should navigate to tours page on "View All Tours" click', async ({ browser
   // Locate the "View All Tours" button
   const viewAllToursButton = page.locator('button:has-text("View All Tours")');
 
-  // Use the browser's smooth scroll to bring the button into view
-  await viewAllToursButton.evaluate(element => element.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  // Scroll the button into the center of the view smoothly
+  await viewAllToursButton.evaluate(element => {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  });
 
-  // Click the button
+  // Click the button after scrolling
   await viewAllToursButton.click();
 
   // Add a 2-second pause to wait for the next page to load

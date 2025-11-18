@@ -11,6 +11,7 @@ module.exports = defineConfig({
   reporter: [['list']],
   use: {
     headless: false,
+    video: 'retain-on-failure',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     viewport: null,

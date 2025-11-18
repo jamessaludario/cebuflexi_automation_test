@@ -1,95 +1,85 @@
-import { Page, Browser, BrowserContext, TestInfo } from '@playwright/test';
+import { Browser, BrowserContext, Page, TestInfo } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// Small helpers (kept local to avoid circular exports)
+const ensureDir = (dir: string) => fs.existsSync(dir) || fs.mkdirSync(dir, { recursive: true });
+const safe = (name: string) => name.replace(/[^a-zA-Z0-9-_]/g, '_');
+const now = () => new Date().toISOString().replace(/[:.]/g, '-');
+
 /**
- * Creates a new incognito browser context and a new page, maximized.
- * @param browser The Playwright Browser object.
- * @returns An object containing the new context and page.
+ * Normal incognito context: video is handled automatically for failing tests.
  */
 export async function createIncognitoContext(
-  browser: Browser
+  browser: Browser,
+  testInfo?: TestInfo
 ): Promise<{ context: BrowserContext; page: Page }> {
+  // Temp video folder inside test-results (fallback when no testInfo provided)
+  const tempVideoDir = testInfo
+    ? path.join(testInfo.outputDir, 'video')
+    : path.join(process.cwd(), 'test-results', 'video-temp');
+  ensureDir(tempVideoDir);
+
   const context = await browser.newContext({
     viewport: null,
-    deviceScaleFactor: undefined,
+    recordVideo: { dir: tempVideoDir, size: { width: 1920, height: 1080 } },
   });
   const page = await context.newPage();
+
+  const originalClose = context.close.bind(context);
+  context.close = async () => {
+    await originalClose(); // Playwright finalizes video
+
+    const video = page.video();
+    if (!video) return;
+
+    // If no testInfo was provided (helper used standalone), just delete temp video
+    if (!testInfo) {
+      try {
+        await video.delete();
+      } catch (e) {
+        /* ignore */
+      }
+      return;
+    }
+
+    if (testInfo.status === 'failed') {
+      const videosDir = path.resolve(__dirname, '../../videos');
+      ensureDir(videosDir);
+
+      const fileName = `${safe(testInfo.title)}_${now()}.webm`;
+      const targetPath = path.join(videosDir, fileName);
+
+      try {
+        await video.saveAs(targetPath);
+        await video.delete(); // remove temp copy
+        console.log(`[browser-utils] 💾 Saved failed test video: ${targetPath}`);
+      } catch (err) {
+        console.warn(`[browser-utils] ⚠️ Could not save video:`, err);
+      }
+    }
+  };
+
   return { context, page };
 }
 
 /**
- * Creates a new incognito browser context with video recording enabled.
- * Automatically names the video based on the test title, timestamp, and status.
- * Ensures the /videos directory exists, logs the path, and safely finalizes the video.
- * @param browser The Playwright Browser object.
- * @param testInfo The Playwright TestInfo object (auto-provided per test)
- * @returns An object containing the new context and page.
+ * Always-record context: video is recorded for all tests.
  */
 export async function createContextWithVideo(
   browser: Browser,
-  testInfo: TestInfo
+  testInfo?: TestInfo
 ): Promise<{ context: BrowserContext; page: Page }> {
-  // Resolve base directory for videos
-  const videosDir = path.resolve(__dirname, '../../videos');
+  const tempDir = testInfo ? path.join(testInfo.outputDir, 'video') : path.join(process.cwd(), 'test-results', 'video-temp');
+  ensureDir(tempDir);
 
-  // Ensure base directory exists
-  if (!fs.existsSync(videosDir)) {
-    fs.mkdirSync(videosDir, { recursive: true });
-    console.log(`[browser-utils] Created video directory: ${videosDir}`);
-  }
-
-  // Generate a safe folder name using test title + timestamp
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const safeTestName = testInfo.title.replace(/[^a-zA-Z0-9-_]/g, '_');
-  const testVideoDir = path.join(videosDir, `${safeTestName}_${timestamp}`);
-
-  fs.mkdirSync(testVideoDir, { recursive: true });
-
-  // Create browser context with video recording enabled
   const context = await browser.newContext({
     viewport: null,
-    deviceScaleFactor: undefined,
     recordVideo: {
-      dir: testVideoDir,
+      dir: tempDir, // temporary storage, final save in afterEach
       size: { width: 1920, height: 1080 },
     },
   });
-
   const page = await context.newPage();
-
-  console.log(`[browser-utils] 🎥 Recording video for "${testInfo.title}" at: ${testVideoDir}`);
-
-  // Wrap context.close() to safely finalize and rename the video file
-  const originalClose = context.close.bind(context);
-  context.close = async () => {
-    try {
-      console.log('[browser-utils] Waiting briefly before closing to finalize video...');
-      await page.waitForTimeout(1000);
-    } catch (err) {
-      console.warn('[browser-utils] Error during wait before close:', err);
-    }
-
-    await originalClose();
-
-    console.log(`[browser-utils] Context closed. Checking for video file in: ${testVideoDir}`);
-    await new Promise((r) => setTimeout(r, 1000)); // give the file a moment to finish writing
-
-    // Detect and rename the video file
-    const files = fs.readdirSync(testVideoDir);
-    const videoFile = files.find((f) => f.endsWith('.webm'));
-    if (videoFile) {
-      const oldPath = path.join(testVideoDir, videoFile);
-      const status = testInfo.status ?? 'unknown'; // may be undefined if called mid-test
-      const newFileName = `${safeTestName}_${timestamp}_${status}.webm`;
-      const newPath = path.join(testVideoDir, newFileName);
-
-      fs.renameSync(oldPath, newPath);
-      console.log(`[browser-utils] ✅ Video saved as: ${newFileName}`);
-    } else {
-      console.warn(`[browser-utils] ⚠️ No .webm video found in ${testVideoDir}`);
-    }
-  };
-
   return { context, page };
 }
